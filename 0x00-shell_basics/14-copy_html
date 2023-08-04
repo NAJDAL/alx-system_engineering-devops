@@ -1,2 +1,2 @@
 n#!/bin/bash
-cp -un *.htm ../
+cp -u *.htm ..
