@@ -1,93 +1,45 @@
 #!/usr/bin/python3
 """
-Function to count words in all hot posts of a given Reddit subreddit.
+Queries the Reddit API, parses the title of all hot articles, and prints a
+sorted count of given keywords.
 """
 import requests
 
 
-def count_words(subreddit, word_list, after=None, counts={}):
+def count_words(subreddit, word_list, hot_list=[], viewed_count=0, after=''):
     """
-    Recursive function that queries the Reddit API, parses the title of all
-        hot articles, and prints a sorted count of given keywords
+    Queries the Reddit API, parses the title of all hot articles, and prints a
+    sorted count of given keywords.
     """
-    if not word_list or word_list == [] or not subreddit:
-        return
+    base = 'https://www.reddit.com/'
+    endpoint = 'r/{}/hot.json'.format(subreddit)
+    query_string = '?show="all"&limit=100&after={}&count={}'.format(
+        after, viewed_count)
+    url = base + endpoint + query_string
+    headers = {'User-Agent': 'Python/1.0(Holberton School 0x16 task 3)'}
+    response = requests.get(url, headers=headers)
+    if not response.ok:
+            return
 
-    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    data = response.json()['data']
+    for post in data['children']:
+        hot_list.append(post['data']['title'])
+    after = data['after']
+    dist = data['dist']
+    if (after):
+        count_words(subreddit, [], hot_list, viewed_count + dist, after)
 
-    params = {"limit": 100}
-    if after:
-        params["after"] = after
+    if viewed_count == 0:
+        result = {}
+        word_list = [word.lower() for word in word_list]
+        hot_words = ' '.join(hot_list).lower().split(' ')
+        for hot_word in hot_words:
+            for search_word in word_list:
+                if hot_word == search_word:
+                    result.setdefault(search_word, 0)
+                    result[search_word] += 1
 
-    response = requests.get(url,
-                            headers=headers,
-                            params=params,
-                            allow_redirects=False)
-
-    if response.status_code != 200:
-        return
-
-    data = response.json()
-    children = data["data"]["children"]
-
-    for post in children:
-        title = post["data"]["title"].lower()
-        for word in word_list:
-            if word.lower() in title:
-                counts[word] = counts.get(word, 0) + title.count(word.lower())
-
-    after = data["data"]["after"]
-    if after:
-        count_words(subreddit, word_list, after, counts)
-    else:
-        sorted_counts = sorted(counts.items(),
-                               key=lambda x: (-x[1], x[0].lower()))
-        for word, count in sorted_counts:
-            print(f"{word.lower()}: {count}")#!/usr/bin/python3
-"""
-Function to count words in all hot posts of a given Reddit subreddit.
-"""
-import requests
-
-
-def count_words(subreddit, word_list, after=None, counts={}):
-    """
-    Recursive function that queries the Reddit API, parses the title of all
-        hot articles, and prints a sorted count of given keywords
-    """
-    if not word_list or word_list == [] or not subreddit:
-        return
-
-    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    params = {"limit": 100}
-    if after:
-        params["after"] = after
-
-    response = requests.get(url,
-                            headers=headers,
-                            params=params,
-                            allow_redirects=False)
-
-    if response.status_code != 200:
-        return
-
-    data = response.json()
-    children = data["data"]["children"]
-
-    for post in children:
-        title = post["data"]["title"].lower()
-        for word in word_list:
-            if word.lower() in title:
-                counts[word] = counts.get(word, 0) + title.count(word.lower())
-
-    after = data["data"]["after"]
-    if after:
-        count_words(subreddit, word_list, after, counts)
-    else:
-        sorted_counts = sorted(counts.items(),
-                               key=lambda x: (-x[1], x[0].lower()))
-        for word, count in sorted_counts:
-            print(f"{word.lower()}: {count}")
+        for word, count in sorted(
+            sorted(result.items()), key=lambda x: x[1], reverse=True
+        ):
+            print("{}: {}".format(word, count))
